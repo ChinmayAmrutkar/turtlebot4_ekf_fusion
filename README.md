@@ -1,24 +1,21 @@
 # Turtlebot 4 EKF Sensor Fusion
 
-This project implements a custom **Extended Kalman Filter (EKF)** for the Turtlebot 4 running ROS 2 Humble. 
+This project implements a custom **Modular Extended Kalman Filter (EKF)** for the Turtlebot 4 running ROS 2 Humble.
 
-It fuses data from multiple sensors to create a robust, drift-free estimate of the robot's position and heading (`/ekf_odom`).
+Unlike standard packages, this uses a micro-services architecture where each sensor has its own dedicated processing script, fusing data into a robust global estimate.
 
-## How It Works (The Algorithm)
+## Architecture
 
-This EKF uses a **Kinematic Motion Model** to split the task into Prediction and Correction steps.
+The system is split into 4 modular nodes:
 
-### 1. Prediction Step (High Frequency)
-We predict the robot's next state based on its control inputs.
-* **Source:** * **Linear Velocity ($v$):** From Wheel Encoders (`/odom`).
-    * **Angular Velocity ($\omega$):** From IMU Gyroscope (`/imu`).
-* **Why?** Wheel encoders are good for speed but drift in rotation. The IMU is excellent for detecting rotation changes. This combination gives the smoothest prediction.
+### 1. Sensor Processing (Pre-Processing)
+* **`sensor_imu.py`:** Calibrates the IMU at startup to remove gyro bias and publishes clean angular velocity.
+* **`sensor_wheel.py`:** Extracts pure linear velocity from wheel encoders.
+* **`sensor_lidar.py`:** Performs **Scan Matching (ICP)** using Open3D to calculate absolute robot motion from raw laser scans (replaces `rf2o`).
 
-### 2. Correction Step (Low Frequency)
-We correct the predicted position using absolute measurements from external sources.
-* **Wheel Odometry (`/odom`):** Used with low confidence to anchor the scale.
-* **Lidar Odometry (`/lidar_odom`):** Derived from Scan Matching (via `rf2o`). Corrects drift using the map environment.
-* **Visual Odometry (`/visual_odom`):** From OAK-D camera. Corrects drift using visual features.
+### 2. Fusion Engine (`main_ekf.py`)
+* **Prediction:** Uses Wheel Velocity ($v$) + Clean Gyro ($\omega$).
+* **Correction:** Corrects drift using the Lidar Odometry calculated by `sensor_lidar`.
 
 ---
 
@@ -28,89 +25,36 @@ We correct the predicted position using absolute measurements from external sour
 * **Robot:** Turtlebot 4 (Raspberry Pi 4 + Create 3 Base)
 * **OS:** Ubuntu 22.04 (Jammy)
 * **ROS Distro:** ROS 2 Humble
-* **Network:** CycloneDDS configured properly (See `cyclonedds_pc.xml` setup).
+* **Network:** CycloneDDS configured properly.
 
 ### 2. Dependencies
-You need these Python libraries and ROS packages installed on your Host PC / Robot:
-
+We removed external ROS packages in favor of standard Python libraries. You need these installed on your Host PC / Robot:
 ```bash
-# Python Math Libraries
-pip3 install numpy transforms3d
+# Python Math & Computer Vision Libraries
+pip3 install numpy transforms3d open3d opencv-python scipy
 
 # ROS 2 TF Transformations
 sudo apt install ros-humble-tf-transformations
-
-# Lidar Odometry Generator (Required for Lidar fusion)
-sudo apt install ros-humble-rf2o-laser-odometry
-```
-# Turtlebot 4 EKF Sensor Fusion
-
-This project implements a custom **Extended Kalman Filter (EKF)** for the Turtlebot 4 running ROS 2 Humble.
-
-It fuses data from multiple sensors to create a robust, drift-free estimate of the robot's position and heading (`/ekf_odom`).
-
-## How It Works (The Algorithm)
-
-This EKF uses a **Kinematic Motion Model** to split the task into Prediction and Correction steps.
-
-### 1. Prediction Step (High Frequency)
-We predict the robot's next state based on its control inputs.
-* **Source:** * **Linear Velocity (v):** From Wheel Encoders (`/odom`).
-    * **Angular Velocity (w):** From IMU Gyroscope (`/imu`).
-* **Why?** Wheel encoders are good for speed but drift in rotation. The IMU is excellent for detecting rotation changes. This combination gives the smoothest prediction.
-
-### 2. Correction Step (Low Frequency)
-We correct the predicted position using absolute measurements from external sources.
-* **Wheel Odometry (`/odom`):** Used with low confidence to anchor the scale.
-* **Lidar Odometry (`/lidar_odom`):** Derived from Scan Matching (via `rf2o`). Corrects drift using the map environment.
-* **Visual Odometry (`/visual_odom`):** From OAK-D camera. Corrects drift using visual features.
-
----
-
-## Prerequisites
-
-### 1. System Requirements
-* **Robot:** Turtlebot 4 (Raspberry Pi 4 + Create 3 Base)
-* **OS:** Ubuntu 22.04 (Jammy)
-* **ROS Distro:** ROS 2 Humble
-* **Network:** CycloneDDS configured properly (See `cyclonedds_pc.xml` setup).
-
-### 2. Dependencies
-You need these Python libraries and ROS packages installed on your Host PC / Robot:
-```bash
-# Python Math Libraries
-pip3 install numpy transforms3d
-```
-```bash
-# ROS 2 TF Transformations
-sudo apt install ros-humble-tf-transformations
-```
-```bash
-# Lidar Odometry Generator (Required for Lidar fusion)
-sudo apt install ros-humble-rf2o-laser-odometry
 ```
 ---
 
 ## Installation
 
-1.  **Create a Workspace** (if you haven't already):
+1.  **Create a Workspace**:
 ```bash
 mkdir -p ~/ekf_ws/src
 cd ~/ekf_ws/src
 ```
-
-2.  **Clone the Repository:**
+2.  **Clone the Repository**:
 ```bash
 git clone https://github.com/ChinmayAmrutkar/turtlebot4_ekf_fusion.git
 ```
-
-3.  **Install ROS Dependencies:**
+3.  **Install ROS Dependencies**:
 ```bash
 cd ~/ekf_ws
 rosdep install --from-paths src --ignore-src -r -y
 ```
-
-4.  **Build:**
+4.  **Build**:
 ```bash
 colcon build --symlink-install
 source install/setup.bash
@@ -120,56 +64,51 @@ source install/setup.bash
 ## Usage
 
 ### Step 1: Launch the Robot
-Ensure the Turtlebot 4 is turned on and you can see topics on your host PC.
+Ensure the Turtlebot 4 is turned on and active.
 ```bash
 ros2 topic list
 ```
-### Step 2: Start Lidar Odometry (Scan Matcher)
-The EKF needs an Odometry message, not raw laser scans. We use `rf2o` to convert the scan data.
-```bash
-ros2 launch rf2o_laser_odometry rf2o_laser_odometry.launch.py laser_scan_topic:=/scan odom_topic:=/lidar_odom
-```
 
-### Step 3: Run the EKF Node
+### Step 2: Launch the EKF Stack
+We have a master launch file that starts all 4 nodes (`sensor_imu`, `sensor_wheel`, `sensor_lidar`, `main_ekf`) automatically.
 ```bash
-ros2 run ekf_fusion ekf_node
+ros2 launch ekf_fusion ekf.launch.py
 ```
+*Note: Keep the robot still for the first 5 seconds while `sensor_imu` calibrates!*
 
-### Step 4: Visualize
+### Step 3: Visualize
 Open RViz2:
 ```bash
 rviz2
 ```
-
 * Set **Fixed Frame** to `odom`.
 * Add **Odometry** display -> Topic `/ekf_odom`.
-* (Optional) Compare it by adding another Odometry display for `/odom`.
+* Add **Odometry** display -> Topic `/lidar_odom` (to see the raw ICP result).
 
 ---
 
 ## Configuration & Tuning
 
-You can tune the Kalman Filter matrices inside `ekf_node.py` to trust certain sensors more or less.
+### Tuning the EKF (`main_ekf.py`)
+Adjust the Kalman matrices to trust specific sensors:
+* **Process Noise (`self.Q`):** Trust the prediction (Wheels/IMU) less? Increase this.
+* **Measurement Noise (`self.R`):** Trust the Lidar ICP less? Increase `self.R_lidar`.
 
-* **Process Noise (`self.Q`):** Increase this if the robot moves unpredictably (slip).
-* **Measurement Noise (`self.R`):**
-    * **`R_odom`:** Trust wheel encoders less? Increase these values.
-    * **`R_lidar`:** Trust Lidar more? Decrease these values.
-
-#### Example: Trust Lidar Very Highly
-self.R_lidar = np.diag([0.01, 0.01, 0.01]) 
+### Tuning the Lidar ICP (`sensor_lidar.py`)
+* **`self.icp_threshold`:** Currently set to **0.5m**. If the robot moves faster than this between frames, ICP might fail. Increase if the robot is fast, decrease if scans are noisy.
 
 ---
 
 ## Troubleshooting
 
-**1. "Topic /scan not found"**
-* Ensure the robot is not docked (power saving disables Lidar).
-* Check CycloneDDS configuration.
+**1. "IMU Calibration stuck"**
+* Ensure the robot is completely stationary when you launch the code. It takes 200 samples (~2 seconds) to calculate bias.
 
-**2. "Matrix Singular" Error**
-* This happens if the covariance matrix collapses. Restart the node. It usually means your `R` values are too small (too confident).
+**2. "Module 'open3d' not found"**
+* You missed the pip install step. Run `pip3 install open3d`.
 
-**3. Robot spinning in RViz**
-* Check if `ROS_DOMAIN_ID` matches on both Robot and PC.
-* Ensure IMU calibration on the Create 3 base is correct.
+**3. "Matrix Singular" Error**
+* This usually means the Covariance Matrix collapsed. Restart the launch file.
+
+**4. Robot Drifting in RViz**
+* Check if `sensor_lidar` is publishing `/lidar_odom`. If the environment is featureless (long empty hallway), ICP cannot lock on.
