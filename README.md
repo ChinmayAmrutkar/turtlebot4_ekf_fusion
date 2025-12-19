@@ -4,7 +4,7 @@ This project implements a custom **Extended Kalman Filter (EKF)** for the Turtle
 
 It fuses data from multiple sensors to create a robust, drift-free estimate of the robot's position and heading (`/ekf_odom`).
 
-## 🧠 How It Works (The Algorithm)
+## How It Works (The Algorithm)
 
 This EKF uses a **Kinematic Motion Model** to split the task into Prediction and Correction steps.
 
@@ -22,7 +22,7 @@ We correct the predicted position using absolute measurements from external sour
 
 ---
 
-## 🛠️ Prerequisites
+## Prerequisites
 
 ### 1. System Requirements
 * **Robot:** Turtlebot 4 (Raspberry Pi 4 + Create 3 Base)
@@ -49,7 +49,7 @@ This project implements a custom **Extended Kalman Filter (EKF)** for the Turtle
 
 It fuses data from multiple sensors to create a robust, drift-free estimate of the robot's position and heading (`/ekf_odom`).
 
-## 🧠 How It Works (The Algorithm)
+## How It Works (The Algorithm)
 
 This EKF uses a **Kinematic Motion Model** to split the task into Prediction and Correction steps.
 
@@ -67,7 +67,7 @@ We correct the predicted position using absolute measurements from external sour
 
 ---
 
-## 🛠️ Prerequisites
+## Prerequisites
 
 ### 1. System Requirements
 * **Robot:** Turtlebot 4 (Raspberry Pi 4 + Create 3 Base)
@@ -91,7 +91,7 @@ sudo apt install ros-humble-rf2o-laser-odometry
 ```
 ---
 
-## 🚀 Installation
+## Installation
 
 1.  **Create a Workspace** (if you haven't already):
 ```bash
@@ -117,7 +117,7 @@ source install/setup.bash
 ```
 ---
 
-## 🏃 Usage
+## Usage
 
 ### Step 1: Launch the Robot
 Ensure the Turtlebot 4 is turned on and you can see topics on your host PC.
@@ -147,7 +147,7 @@ rviz2
 
 ---
 
-## ⚙️ Configuration & Tuning
+## Configuration & Tuning
 
 You can tune the Kalman Filter matrices inside `ekf_node.py` to trust certain sensors more or less.
 
@@ -161,7 +161,7 @@ You can tune the Kalman Filter matrices inside `ekf_node.py` to trust certain se
 
 ---
 
-## ⚠️ Troubleshooting
+## Troubleshooting
 
 **1. "Topic /scan not found"**
 * Ensure the robot is not docked (power saving disables Lidar).
