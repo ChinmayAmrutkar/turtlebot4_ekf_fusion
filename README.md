@@ -156,8 +156,8 @@ You can tune the Kalman Filter matrices inside `ekf_node.py` to trust certain se
     * **`R_odom`:** Trust wheel encoders less? Increase these values.
     * **`R_lidar`:** Trust Lidar more? Decrease these values.
 
-    # Example: Trust Lidar Very Highly
-    self.R_lidar = np.diag([0.01, 0.01, 0.01]) 
+#### Example: Trust Lidar Very Highly
+self.R_lidar = np.diag([0.01, 0.01, 0.01]) 
 
 ---
 
